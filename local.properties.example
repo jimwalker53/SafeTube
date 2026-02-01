@@ -1,0 +1,25 @@
+# SafeTube Configuration
+# Copy this file to local.properties and fill in your API credentials
+# DO NOT commit local.properties to version control!
+
+# Android SDK location (typically set automatically by Android Studio)
+# sdk.dir=/path/to/android/sdk
+
+# YouTube Data API v3 key
+# Obtain from Google Cloud Console: https://console.cloud.google.com/
+# 1. Create a new project or select existing
+# 2. Enable YouTube Data API v3
+# 3. Create credentials > API Key
+# 4. (Optional) Restrict the key to YouTube Data API v3 and your app's package
+youtube.api.key=YOUR_YOUTUBE_API_KEY_HERE
+
+# Google OAuth 2.0 Client ID
+# Required for user authentication (subscriptions, likes, etc.)
+# 1. In Google Cloud Console, go to Credentials
+# 2. Create OAuth 2.0 Client ID
+# 3. Select "Android" as application type
+# 4. Enter your package name: com.safetube
+# 5. Enter your SHA-1 signing certificate fingerprint
+#    - Debug: keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android
+#    - Release: keytool -list -v -keystore /path/to/release.keystore -alias your-key-alias
+google.client.id=YOUR_GOOGLE_CLIENT_ID_HERE.apps.googleusercontent.com
