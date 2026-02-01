@@ -10,6 +10,7 @@ data class Video(
     val thumbnailUrl: String,
     val channelId: String,
     val channelTitle: String,
+    val channelThumbnailUrl: String = "",
     val publishedAt: String,
     val viewCount: Long = 0,
     val likeCount: Long = 0,
