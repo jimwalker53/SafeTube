@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.safetube.domain.model.Video
 import com.safetube.domain.usecase.GetHomeVideosUseCase
+import com.safetube.ui.components.VideoCategories
+import com.safetube.ui.components.VideoCategory
 import com.safetube.util.Result
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -38,8 +40,9 @@ class HomeViewModel @Inject constructor(
             }
 
             val pageToken = if (refresh) null else _uiState.value.nextPageToken
+            val categoryId = _uiState.value.selectedCategory.id.takeIf { it != "0" }
 
-            when (val result = getHomeVideosUseCase(pageToken = pageToken)) {
+            when (val result = getHomeVideosUseCase(pageToken = pageToken, categoryId = categoryId)) {
                 is Result.Success -> {
                     _uiState.update { state ->
                         val newVideos = if (refresh) {
@@ -74,6 +77,19 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    fun selectCategory(category: VideoCategory) {
+        if (category.id == _uiState.value.selectedCategory.id) return
+
+        _uiState.update { state ->
+            state.copy(
+                selectedCategory = category,
+                videos = emptyList(),
+                nextPageToken = null
+            )
+        }
+        loadVideos(refresh = true)
+    }
+
     fun refresh() {
         _uiState.update { it.copy(isRefreshing = true) }
         loadVideos(refresh = true)
@@ -91,5 +107,6 @@ data class HomeUiState(
     val nextPageToken: String? = null,
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val selectedCategory: VideoCategory = VideoCategories.ALL
 )

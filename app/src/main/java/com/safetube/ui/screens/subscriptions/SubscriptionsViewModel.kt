@@ -10,6 +10,8 @@ import com.safetube.domain.model.Subscription
 import com.safetube.domain.model.Video
 import com.safetube.util.Result
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -85,6 +87,11 @@ class SubscriptionsViewModel @Inject constructor(
                             error = null
                         )
                     }
+
+                    // After loading subscriptions, load videos from all channels
+                    if (refresh || _uiState.value.subscriptionVideos.isEmpty()) {
+                        loadSubscriptionVideos()
+                    }
                 }
 
                 is Result.Error -> {
@@ -102,8 +109,69 @@ class SubscriptionsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Load recent videos from all subscribed channels.
+     */
+    private fun loadSubscriptionVideos() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingVideos = true) }
+
+            val subscriptions = _uiState.value.subscriptions.take(10) // Limit to first 10 channels
+            if (subscriptions.isEmpty()) {
+                _uiState.update { it.copy(isLoadingVideos = false) }
+                return@launch
+            }
+
+            // Load videos from each channel in parallel
+            val videoResults = subscriptions.map { subscription ->
+                async {
+                    loadVideosFromChannel(subscription.channel)
+                }
+            }.awaitAll()
+
+            // Combine and sort all videos by publish date
+            val allVideos = videoResults.flatten()
+                .sortedByDescending { it.publishedAt }
+
+            // Filter videos
+            val filteredVideos = contentFilterEngine.filterVideos(allVideos)
+
+            _uiState.update { state ->
+                state.copy(
+                    subscriptionVideos = filteredVideos,
+                    isLoadingVideos = false
+                )
+            }
+        }
+    }
+
+    private suspend fun loadVideosFromChannel(channel: Channel): List<Video> {
+        return when (val result = channelRepository.getChannelVideos(channel.id)) {
+            is Result.Success -> {
+                result.data.items?.mapNotNull { dto ->
+                    val videoId = dto.id?.videoId ?: return@mapNotNull null
+                    Video(
+                        id = videoId,
+                        title = dto.snippet?.title ?: "",
+                        description = dto.snippet?.description ?: "",
+                        thumbnailUrl = dto.snippet?.thumbnails?.high?.url
+                            ?: dto.snippet?.thumbnails?.medium?.url
+                            ?: dto.snippet?.thumbnails?.default?.url
+                            ?: "",
+                        channelId = dto.snippet?.channelId ?: "",
+                        channelTitle = dto.snippet?.channelTitle ?: "",
+                        channelThumbnailUrl = channel.thumbnailUrl,
+                        publishedAt = dto.snippet?.publishedAt ?: "",
+                        isLive = dto.snippet?.liveBroadcastContent == "live"
+                    )
+                } ?: emptyList()
+            }
+            else -> emptyList()
+        }
+    }
+
     fun refresh() {
-        _uiState.update { it.copy(isRefreshing = true) }
+        _uiState.update { it.copy(isRefreshing = true, selectedChannelId = null) }
         loadSubscriptions(refresh = true)
     }
 
@@ -113,25 +181,24 @@ class SubscriptionsViewModel @Inject constructor(
         }
     }
 
-    fun selectChannel(subscription: Subscription) {
+    /**
+     * Select a channel to filter videos. Pass null for "All".
+     */
+    fun selectChannel(channelId: String?) {
         _uiState.update { state ->
-            state.copy(selectedChannel = subscription.channel)
+            state.copy(selectedChannelId = channelId)
         }
-        loadChannelVideos(subscription.channel.id)
-    }
 
-    fun clearSelectedChannel() {
-        _uiState.update { state ->
-            state.copy(
-                selectedChannel = null,
-                channelVideos = emptyList()
-            )
+        if (channelId != null) {
+            loadChannelVideos(channelId)
         }
     }
 
     private fun loadChannelVideos(channelId: String) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoadingChannelVideos = true) }
+            _uiState.update { it.copy(isLoadingVideos = true) }
+
+            val channel = _uiState.value.subscriptions.find { it.channel.id == channelId }?.channel
 
             when (val result = channelRepository.getChannelVideos(channelId)) {
                 is Result.Success -> {
@@ -147,6 +214,7 @@ class SubscriptionsViewModel @Inject constructor(
                                 ?: "",
                             channelId = dto.snippet?.channelId ?: "",
                             channelTitle = dto.snippet?.channelTitle ?: "",
+                            channelThumbnailUrl = channel?.thumbnailUrl ?: "",
                             publishedAt = dto.snippet?.publishedAt ?: "",
                             isLive = dto.snippet?.liveBroadcastContent == "live"
                         )
@@ -157,8 +225,8 @@ class SubscriptionsViewModel @Inject constructor(
 
                     _uiState.update { state ->
                         state.copy(
-                            channelVideos = filteredVideos,
-                            isLoadingChannelVideos = false
+                            filteredChannelVideos = filteredVideos,
+                            isLoadingVideos = false
                         )
                     }
                 }
@@ -166,7 +234,7 @@ class SubscriptionsViewModel @Inject constructor(
                 is Result.Error -> {
                     _uiState.update { state ->
                         state.copy(
-                            isLoadingChannelVideos = false,
+                            isLoadingVideos = false,
                             error = result.message
                         )
                     }
@@ -174,6 +242,18 @@ class SubscriptionsViewModel @Inject constructor(
 
                 is Result.Loading -> {}
             }
+        }
+    }
+
+    /**
+     * Get videos to display based on selected channel filter.
+     */
+    fun getDisplayedVideos(): List<Video> {
+        val state = _uiState.value
+        return if (state.selectedChannelId == null) {
+            state.subscriptionVideos
+        } else {
+            state.filteredChannelVideos
         }
     }
 }
@@ -184,7 +264,8 @@ data class SubscriptionsUiState(
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
     val error: String? = null,
-    val selectedChannel: Channel? = null,
-    val channelVideos: List<Video> = emptyList(),
-    val isLoadingChannelVideos: Boolean = false
+    val selectedChannelId: String? = null, // null = "All"
+    val subscriptionVideos: List<Video> = emptyList(), // Videos from all subscriptions
+    val filteredChannelVideos: List<Video> = emptyList(), // Videos from selected channel
+    val isLoadingVideos: Boolean = false
 )
