@@ -105,7 +105,7 @@ fun HomeScreen(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 private fun YouTubeStyleTopBar(
     onSearchClick: () -> Unit,

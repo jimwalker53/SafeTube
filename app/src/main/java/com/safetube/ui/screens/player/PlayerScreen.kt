@@ -48,6 +48,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.YouTubePlayer
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.listeners.AbstractYouTubePlayerListener
+import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.listeners.YouTubePlayerCallback
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.views.YouTubePlayerView
 import com.safetube.R
 import com.safetube.ui.components.VideoListItem
@@ -126,8 +127,8 @@ fun PlayerScreen(
                     DisposableEffect(lifecycleOwner) {
                         val observer = LifecycleEventObserver { _, event ->
                             when (event) {
-                                Lifecycle.Event.ON_RESUME -> youTubePlayerView.getYouTubePlayerWhenReady(object : AbstractYouTubePlayerListener() {
-                                    override fun onReady(youTubePlayer: YouTubePlayer) {
+                                Lifecycle.Event.ON_RESUME -> youTubePlayerView.getYouTubePlayerWhenReady(object : YouTubePlayerCallback {
+                                    override fun onYouTubePlayer(youTubePlayer: YouTubePlayer) {
                                         // Player ready
                                     }
                                 })
