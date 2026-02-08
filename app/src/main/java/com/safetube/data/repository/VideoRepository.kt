@@ -17,13 +17,15 @@ class VideoRepository @Inject constructor(
     suspend fun getPopularVideos(
         pageToken: String? = null,
         regionCode: String = "US",
-        maxResults: Int = 20
+        maxResults: Int = 20,
+        categoryId: String? = null
     ): Result<YouTubeListResponse<VideoDto>> {
         return try {
             val response = apiService.getPopularVideos(
                 pageToken = pageToken,
                 regionCode = regionCode,
-                maxResults = maxResults
+                maxResults = maxResults,
+                categoryId = categoryId
             )
             if (response.isSuccessful) {
                 response.body()?.let {

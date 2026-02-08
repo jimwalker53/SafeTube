@@ -18,9 +18,14 @@ class GetHomeVideosUseCase @Inject constructor(
 
     suspend operator fun invoke(
         pageToken: String? = null,
-        maxResults: Int = 20
+        maxResults: Int = 20,
+        categoryId: String? = null
     ): Result<HomeVideosResult> {
-        return when (val result = videoRepository.getPopularVideos(pageToken, maxResults = maxResults)) {
+        return when (val result = videoRepository.getPopularVideos(
+            pageToken = pageToken,
+            maxResults = maxResults,
+            categoryId = categoryId
+        )) {
             is Result.Success -> {
                 val videos = result.data.items?.map { it.toDomain() } ?: emptyList()
                 val filteredVideos = contentFilterEngine.filterVideos(videos)
