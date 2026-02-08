@@ -6,6 +6,8 @@ import com.safetube.data.remote.dto.SubscribeRequest
 import com.safetube.data.remote.dto.SubscriptionDto
 import com.safetube.data.remote.dto.VideoDto
 import com.safetube.data.remote.dto.YouTubeListResponse
+import com.squareup.moshi.Json
+import com.squareup.moshi.JsonClass
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -142,11 +144,13 @@ interface YouTubeApiService {
 /**
  * Response for video rating query.
  */
+@JsonClass(generateAdapter = true)
 data class VideoRatingResponse(
-    val items: List<VideoRating>?
+    @Json(name = "items") val items: List<VideoRating>?
 )
 
+@JsonClass(generateAdapter = true)
 data class VideoRating(
-    val videoId: String?,
-    val rating: String? // "like", "dislike", "none", "unspecified"
+    @Json(name = "videoId") val videoId: String?,
+    @Json(name = "rating") val rating: String? // "like", "dislike", "none", "unspecified"
 )
